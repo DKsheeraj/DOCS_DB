@@ -1,7 +1,7 @@
 # DOCS_DB
 
 DOCS_DB is a key-value store implemented in C++. The keys have the following fields:
-- Last name, First name, Year of birth, City, Money
+- Last name, First name, Year of birth, Country, Money
   
 ## Build
 
