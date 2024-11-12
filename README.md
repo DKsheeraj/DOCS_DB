@@ -1,13 +1,8 @@
 # DOCS_DB
 
-DOCS_DB is a key-value store implemented in C++. The keys in the Redis store are strings, and the values are records of students with the following fields:
-- Last name
-- First name
-- Year of birth
-- City
-- Number of current coins
-
-
+DOCS_DB is a key-value store implemented in C++. The keys have the following fields:
+- Last name, First name, Year of birth, City, Money
+  
 ## Build
 
 The project can be built using CMake version 3.15 or higher.
