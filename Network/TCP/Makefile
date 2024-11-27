@@ -12,13 +12,13 @@ delete_namespaces:
 
 create_veth_pairs:
 	sudo ip link add tcp_veth1 type veth peer name tcp_veth2
-	sudo ip link add tcp_veth3 type veth peer name veth4
+	sudo ip link add tcp_veth3 type veth peer name tcp_veth4
 
 assign_veth_pairs_to_namespaces:
 	sudo ip link set tcp_veth1 netns tcp_ns1
 	sudo ip link set tcp_veth2 netns tcp_ns2
 	sudo ip link set tcp_veth3 netns tcp_ns2
-	sudo ip link set veth4 netns tcp_ns3
+	sudo ip link set tcp_veth4 netns tcp_ns3
 
 configure_interfaces:
 	sudo ip netns exec tcp_ns1 ip addr add 192.168.0.1/24 dev tcp_veth1
@@ -29,15 +29,15 @@ configure_interfaces:
 	sudo ip netns exec tcp_ns2 ip link set tcp_veth2 up
 	sudo ip netns exec tcp_ns2 ip link set tcp_veth3 up
 	sudo ip netns exec tcp_ns2 ip link set lo up
-	sudo ip netns exec tcp_ns3 ip addr add 192.168.0.4/24 dev veth4
-	sudo ip netns exec tcp_ns3 ip link set veth4 up
+	sudo ip netns exec tcp_ns3 ip addr add 192.168.0.4/24 dev tcp_veth4
+	sudo ip netns exec tcp_ns3 ip link set tcp_veth4 up
 	sudo ip netns exec tcp_ns3 ip link set lo up
 
 delete_interfaces:
 	sudo ip netns exec tcp_ns1 ip link set tcp_veth1 down
 	sudo ip netns exec tcp_ns2 ip link set tcp_veth2 down
 	sudo ip netns exec tcp_ns2 ip link set tcp_veth3 down
-	sudo ip netns exec tcp_ns3 ip link set veth4 down
+	sudo ip netns exec tcp_ns3 ip link set tcp_veth4 down
 	sudo ip netns exec tcp_ns1 ip link del tcp_veth1
 	sudo ip netns exec tcp_ns2 ip link del tcp_veth3
 
