@@ -2,59 +2,86 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
 
-#define SERVER_PORT 8080
-#define MAX_BUFFER_SIZE 1024
+#define SERVER_IP "192.168.0.4" 
+#define SERVER_PORT 8080   
+#ifndef NUM_CONNECTIONS
+#define NUM_CONNECTIONS 10
+#endif   
 
-void generate_random_data(char *buffer, size_t size) {
-    for (size_t i = 0; i < size; i++) {
-        buffer[i] = 'A' + rand() % 26;
+typedef struct {
+    int thread_id;
+    int num_requests;
+} ThreadData;
+
+void *send_requests(void *arg) {
+    ThreadData *data = (ThreadData *)arg;
+    int thread_id = data->thread_id;
+    int num_requests = data->num_requests;
+    char buffer[1024];
+    int sockfd;
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(SERVER_PORT);
+    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+        perror("Invalid server IP address");
+        pthread_exit(NULL);
     }
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        pthread_exit(NULL);
+    }
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        pthread_exit(NULL);
+    }
+    printf("Thread %d connected\n", thread_id);
+    for (int i = 0; i < num_requests; i++) {
+        int data_size = rand() % 512 + 512; // Random size between 512 and 1024 bytes
+        memset(buffer, 'A', data_size);
+        if (send(sockfd, buffer, data_size, 0) < 0) {
+            memset(buffer, 0, sizeof(buffer));
+            sprintf(buffer, "Send failed at %d", i);
+            perror(buffer);
+            close(sockfd);
+            pthread_exit(NULL);
+        }
+        //printf("Thread %d sent %d bytes\n", thread_id, data_size);
+    }
+    close(sockfd);
+    //printf("Thread %d completed\n", thread_id);
+    pthread_exit(NULL);
 }
 
 int main() {
-    int sock = 0, valread;
-    struct sockaddr_in serv_addr;
-    char buffer[MAX_BUFFER_SIZE] = {0};
-    char response[32];
-    char server_ip[16];
+        int connections = NUM_CONNECTIONS;
+        printf("\nRunning test with %d requests over %d connections...\n", 1000*connections, connections);
 
-    srand(time(NULL));
+        pthread_t threads[connections];
+        ThreadData thread_data[connections];
+        int requests_per_thread = 1000;
 
-    printf("Enter server IP address: ");
-    scanf("%s", server_ip);
+        srand(time(NULL));
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SERVER_PORT);
-
-    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
-        perror("Invalid address or address not supported");
-        exit(EXIT_FAILURE);
-    }
-
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Connection failed");
-        exit(EXIT_FAILURE);
-    }
-
-    size_t data_size = (rand() % (MAX_BUFFER_SIZE / 2)) + (MAX_BUFFER_SIZE / 2);
-    generate_random_data(buffer, data_size);
-
-    send(sock, buffer, data_size, 0);
-    printf("Sent %zu bytes to the server\n", data_size);
-
-    valread = read(sock, response, sizeof(response));
-    response[valread] = '\0';
-    printf("Server response: %s\n", response);
-
-    close(sock);
+        for (int i = 0; i < connections; i++) {
+            thread_data[i].thread_id = i+1;
+            thread_data[i].num_requests = requests_per_thread;
+            if (pthread_create(&threads[i], NULL, send_requests, (void *)&thread_data[i]) != 0) {
+                perror("Thread creation failed");
+                exit(EXIT_FAILURE);
+            }
+        }
+        for (int i = 0; i < connections; i++) {
+            pthread_join(threads[i], NULL);
+        }
+        printf("Test with %d requests over %d connections completed.\n", 1000*connections, connections);
 
     return 0;
 }

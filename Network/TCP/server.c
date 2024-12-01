@@ -4,52 +4,52 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define PORT 8080
-#define MAX_BUFFER_SIZE 1024
-
 int main() {
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
-    char buffer[MAX_BUFFER_SIZE] = {0};
-    char response[32];
+    int server_fd, client_fd;
+    struct sockaddr_in server_addr, client_addr;
+    char buffer[1024];
+    socklen_t client_len = sizeof(client_addr);
 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
         perror("Socket failed");
         exit(EXIT_FAILURE);
     }
 
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(8080);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
+    bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    listen(server_fd, 1000);
+    printf("Server listening on port 8080\n");
+    int i=0;
+    while(1) {i++;
+        client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+        
+        if (client_fd < 0) {
+            perror("Accept failed");
+            exit(EXIT_FAILURE);
+        }
+        printf("Client %d connected\n", i);
+        if(fork() == 0){
+            close(server_fd);
+            while(1){
+                int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+                if (bytes_received < 0) {
+                    perror("Receive failed");
+                    break;
+                }
+            }
+            printf("Client %d disconnected\n", i);
+            close(client_fd);
+            exit(0);
+            //printf("Received: %d bytes\n", bytes_received);
+        }
+        close(client_fd);
     }
 
-    if (listen(server_fd, 3) < 0) {
-        perror("Listen failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Server listening on port %d\n", PORT);
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
-
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len)) < 0) {
-        perror("Accept failed");
-        exit(EXIT_FAILURE);
-    }
-
-    valread = read(new_socket, buffer, MAX_BUFFER_SIZE);
-    printf("Received %d bytes from client\n", valread);
-
-    snprintf(response, sizeof(response), "%d", valread);
-    send(new_socket, response, strlen(response), 0);
-    printf("Sent response: %s\n", response);
-
-    close(new_socket);
+    close(client_fd);
     close(server_fd);
-
     return 0;
 }

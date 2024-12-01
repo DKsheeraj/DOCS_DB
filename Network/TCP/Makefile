@@ -1,4 +1,4 @@
-all: create_namespaces create_veth_pairs assign_veth_pairs_to_namespaces configure_interfaces make_tcp_ns2_bridge server client
+all: create_namespaces create_veth_pairs assign_veth_pairs_to_namespaces configure_interfaces make_tcp_ns2_bridge server client delay
 
 create_namespaces:
 	sudo ip netns add tcp_ns1
@@ -74,9 +74,6 @@ show_tables:
 server: server.c
 	gcc -o server server.c
 
-client: client.c
-	gcc -o client client.c
-
 clean:
 	rm -f server client
 
@@ -84,5 +81,13 @@ run_server:
 	sudo ip netns exec tcp_ns3 ./server
 
 run_client:
+	gcc -o client client.c -lpthread
 	sudo ip netns exec tcp_ns1 ./client
+	gcc -o client client.c -lpthread -DNUM_CONNECTIONS=100
+	sudo ip netns exec tcp_ns1 ./client
+	gcc -o client client.c -lpthread -DNUM_CONNECTIONS=1000
+	sudo ip netns exec tcp_ns1 ./client
+
+delay:
+	sudo ip netns exec tcp_ns3 tc qdisc add dev tcp_veth4 root netem delay 100ms loss 5%
 
